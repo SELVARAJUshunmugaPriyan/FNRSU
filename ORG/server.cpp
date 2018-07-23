@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <netdb.h>
 #include <iostream>
@@ -17,15 +18,9 @@ using namespace std;
 
 void taskContainer();
 
-void error(const char *msg)
-{
-  perror(msg);
-  exit(1);
-}
-
 int main(int argc, char* argv[])
 {
-  int sockfd, newsockfd, portno; // pID, portNo, sockfd;
+  int sockfd, newsockfd, portno;
   socklen_t clilen; //store size of the address
   char buffer[256];
   struct sockaddr_in svr_addr, cli_addr;
@@ -83,7 +78,7 @@ int main(int argc, char* argv[])
 
   int noContnr = 0;
 
-  while (noContnr < 3)
+  while (noContnr < 1)
   {
     clilen = sizeof(cli_addr);
     cout << "listening" << endl;
@@ -106,8 +101,23 @@ int main(int argc, char* argv[])
       cout << "server: got connection from " << inet_ntoa(cli_addr.sin_addr) <<  " port " <<  ntohs(cli_addr.sin_port) << endl;
     }
 
-    taskContainer();
+    bzero(buffer, 256);
 
+    n = read(newsockfd, buffer, 255);
+    if (n < 0)
+    {
+      cerr << "Cannot read from socket" << endl;
+    }
+    cout << "[ ID ] " << buffer << endl;
+    // memcmp does not depend on the received data being null terminated, on comapred to strcmp
+    if ( memcmp(buffer, "9751914896", strlen("9751914896")) == 0)
+    {
+      taskContainer();
+    }
+    else
+    {
+      cout << "UNAUTHORIZED ONBOARD REQUEST" << endl;
+    }
     noContnr++;
   }
 
