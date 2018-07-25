@@ -13,20 +13,33 @@
 #include <fstream>
 #include <strings.h>
 #include <string>
+#include <ctime>
+#include <time.h>
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
+#include <array>
 
 using namespace std;
 
-void taskContainer();
+void tsk_cntr();
+
+// system command for deploying container. xxxxxxxxxxxx -> container name
+string CMD("docker run --name xxxxxxxxxxxx testRun --network fn-cntr-int-net -dit alpine sh > /dev/null && docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' xxxxxxxxxxxx");
 
 int main(int argc, char* argv[])
 {
-  int sockfd, newsockfd, portno;
-  socklen_t clilen; //store size of the address
+  int sock_fl_desc, nov_sock_fl_desc, port_no;
+  socklen_t clnt_len; //store size of the address
   char buffer[256];
+  int no_cntr = 0;
   struct sockaddr_in svr_addr, cli_addr;
-  int n;
+  int no_rcvd_bts;
 
-  pthread_t threadA[3];
+  // acquire time
+  time_t t;
+  tm* now;
+  char tme [20];
 
   if (argc < 2)
   {
@@ -36,8 +49,8 @@ int main(int argc, char* argv[])
 
   // create a socket
   // socket(int domain, int type, int protocol)
-  sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-  if(sockfd < 0)
+  sock_fl_desc = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if(sock_fl_desc < 0)
   {
     cerr << "Cannot open socket" << endl;
     return 0;
@@ -52,19 +65,19 @@ int main(int argc, char* argv[])
   svr_addr.sin_addr.s_addr = INADDR_ANY;
 
   // convert short integer value for port must be converted into network byte order
-  portno = atoi(argv[1]);
-  if((portno > 65535) || (portno < 2000))
+  port_no = atoi(argv[1]);
+  if((port_no > 65535) || (port_no < 2000))
   {
     cerr << "Please enter a port number between 2000 - 65535" << endl;
     return 0;
   }
-  svr_addr.sin_port = htons(portno);
+  svr_addr.sin_port = htons(port_no);
 
   // bind(int fd, struct sockaddr *local_addr, socklen_t addr_length)
   // bind() passes file descriptor, the address structure,
   // and the length of the address structure
-  // This bind() call will bind the socket to the current IP address on port, portno
-  if(bind(sockfd, (struct sockaddr *) &svr_addr, sizeof(svr_addr)) < 0)
+  // This bind() call will bind the socket to the current IP address on port, port_no
+  if(bind(sock_fl_desc, (struct sockaddr *) &svr_addr, sizeof(svr_addr)) < 0)
   {
     cerr << "Cannot bind" << endl;
     return 0;
@@ -74,24 +87,22 @@ int main(int argc, char* argv[])
   // The listen() function places all incoming connection into a backlog queue
   // until accept() call accepts the connection.
   // Here, we set the maximum size for the backlog queue to 5.
-  listen(sockfd, 5);
+  listen(sock_fl_desc, 5);
 
-  int noContnr = 0;
-
-  while (noContnr < 1)
+  while (no_cntr < 1)
   {
-    clilen = sizeof(cli_addr);
+    clnt_len = sizeof(cli_addr);
     cout << "listening" << endl;
 
     // This accept() function will write the connecting client's address info
-    // into the address structure and the size of that structure is clilen.
+    // into the address structure and the size of that structure is clnt_len.
     // The accept() returns a new socket file descriptor for the accepted connection.
     // So, the original socket file descriptor can continue to be used
     // for accepting new connections while the new sokcet file descriptor is used for
     // communication with the connected client.
-    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    nov_sock_fl_desc = accept(sock_fl_desc, (struct sockaddr *) &cli_addr, &clnt_len);
 
-    if (newsockfd < 0)
+    if (nov_sock_fl_desc < 0)
     {
       cerr << "Cannot accept connection" << endl;
       return 0;
@@ -103,8 +114,8 @@ int main(int argc, char* argv[])
 
     bzero(buffer, 256);
 
-    n = read(newsockfd, buffer, 255);
-    if (n < 0)
+    no_rcvd_bts = read(nov_sock_fl_desc, buffer, 255);
+    if (no_rcvd_bts < 0)
     {
       cerr << "Cannot read from socket" << endl;
     }
@@ -112,20 +123,27 @@ int main(int argc, char* argv[])
     // memcmp does not depend on the received data being null terminated, on comapred to strcmp
     if ( memcmp(buffer, "9751914896", strlen("9751914896")) == 0)
     {
-      taskContainer();
+      t = time(0);
+      now = localtime(&t);
+      strftime (tme, 20, "%g%m%d%H%M%S", now);
+      // place container name
+      CMD.replace(18, 12, tme);
+      CMD.replace(178, 12, tme);
+      tsk_cntr();
+
     }
     else
     {
       cout << "UNAUTHORIZED ONBOARD REQUEST" << endl;
     }
-    noContnr++;
+    no_cntr++;
   }
 
   cout << "\nClosing thread and conn" << endl;
-  close(newsockfd);
+  close(nov_sock_fl_desc);
 }
 
-void taskContainer ()
+void tsk_cntr ()
 {
-  system("docker run hello-world");
+  system(CMD.c_str());
 }
