@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
   // Here, we set the maximum size for the backlog queue to 5.
   listen(sock_f_dsc, 5);
 
-  while (no_cntr < 1)
+  while (no_cntr < 10)
   {
     clnt_len = sizeof(cli_addr);
     cout << "listening" << endl;
